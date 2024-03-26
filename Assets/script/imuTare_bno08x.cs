@@ -15,20 +15,20 @@ using TMPro;
 
 using UnityEngine.UI;
 
-public class imuReciever_Quaternion : MonoBehaviour
+public class imuTare_bno08x : MonoBehaviour
 {
     private UDPReceiver udpReceiver;
     private CancellationTokenSource cts;
     private float lastUpdateTime;
 
-    [SerializeField] private GameObject imuObject_Ypr;
-    [SerializeField] private GameObject imuObject_Corrected; // 이 오브잭트에 맞추어 방향을 보정한다.
+    [SerializeField] private GameObject imuObject;
+    [SerializeField] private GameObject tareTarget; // 이 오브잭트에 맞추어 방향을 보정한다.
 
     //textui textmeshpro for acc x y z
     [SerializeField] private TextMeshProUGUI textFireCount;
     [SerializeField] private TextMeshProUGUI textNetWorkFps;
     
-    [SerializeField] private Button btnReset;
+    [SerializeField] private Button btnDoTare;
 
     private Quaternion mDeltaRotation; // 회전을 보정하기 위한 값, 센서에서 들어온값에 곱해준다.
     private Quaternion mImuRotation;
@@ -44,10 +44,10 @@ public class imuReciever_Quaternion : MonoBehaviour
 
         mDeltaRotation = Quaternion.identity;
 
-        btnReset.onClick.AddListener(()=> {
+        btnDoTare.onClick.AddListener(()=> {
 
             //틀어진 값을 보정하기 위해 현재 imu의 rotation과 target rotation의 차이를 구한다.
-            Quaternion target = imuObject_Corrected.transform.rotation;
+            Quaternion target = tareTarget.transform.rotation;
             // target - current
             mDeltaRotation = target * Quaternion.Inverse(mImuRotation); //target - mImuRotation
             mDeltaRotation.Normalize();
@@ -57,7 +57,7 @@ public class imuReciever_Quaternion : MonoBehaviour
 
     async void ReceivePacketsAsync(CancellationToken cancellationToken)
     {
-        Quaternion backup_imuObject_Ypr = imuObject_Ypr.transform.rotation;
+        Quaternion backup_imuObject_Ypr = imuObject.transform.rotation;
 
         while (!cancellationToken.IsCancellationRequested)
         {
@@ -72,16 +72,14 @@ public class imuReciever_Quaternion : MonoBehaviour
                 
                 // y,z 축이 서로 바뀌어 있고 x,y축의 방향이 역으로 되어있다.
                 float qW = packet.qW;
-                float qX = -packet.qX;
-                float qY = -packet.qZ; // imu qY = unity qZ
-                float qZ = packet.qY; // imu qZ = unity qY
-
-                // Debug.Log("qW : " + qW + " qX : " + qX + " qY : " + qY + " qZ : " + qZ);
+                float qX = packet.qZ;
+                float qY = packet.qX; 
+                float qZ = packet.qY; 
 
                 //쿼터니온을 만든다.
                 mImuRotation = new Quaternion(qW, qX, qY, qZ); //imu sensor rotation
                 
-                imuObject_Ypr.transform.rotation =  mDeltaRotation * mImuRotation; //값을 보정한다.
+                imuObject.transform.rotation =  mDeltaRotation * mImuRotation; //값을 보정한다.
 
                 textFireCount.text = packet.fire_count.ToString();
 
@@ -107,7 +105,7 @@ public class imuReciever_Quaternion : MonoBehaviour
                 Debug.LogError(ex);
             }
         }
-        imuObject_Ypr.transform.rotation = backup_imuObject_Ypr;
+        imuObject.transform.rotation = backup_imuObject_Ypr;
     }
 
     // Update is called once per frame
