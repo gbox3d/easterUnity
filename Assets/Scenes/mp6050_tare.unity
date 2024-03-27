@@ -514,6 +514,8 @@ MonoBehaviour:
   imuObject_Corrected: {fileID: 630493311}
   textFireCount: {fileID: 1648943163}
   textNetWorkFps: {fileID: 477072798}
+  SensorDataPort: 9250
+  targetDevice: 201
   btnReset: {fileID: 534861325}
 --- !u!114 &701132166
 MonoBehaviour:
