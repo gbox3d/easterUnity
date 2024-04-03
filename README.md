@@ -45,3 +45,19 @@ textNetWorkFps.text = (1.0f / deltaTime).ToString("F2"); //네트워크 fps
 위의 예제에서 처럼 tare를 위해서 mDeltaRotation 을 사용한다. 
 즉 mDeltaRotation은 센서의 원점을 지정하는데 사용된다.   
 
+
+```c#
+btnReset.onClick.AddListener(() =>
+{
+    //틀어진 값을 보정하기 위해 현재 imu의 rotation과 target rotation의 차이를 구한다.
+    Quaternion target = imuObject_Corrected.transform.rotation;
+    // target - current
+    mDeltaRotation = target * Quaternion.Inverse(mImuRotation); //target - mImuRotation
+    mDeltaRotation.Normalize();
+});
+```
+mDeltaRotation은 위와 같이 target - current 로 구한다.  
+target은 목표값이고 current는 현재 imu의 rotation값이다. 그래서 mImuRotation이 current 이다.  
+따라서 target 과 같은 회전상태를 만든후 tare를 하면 imu의 원점이 target과 같은 위치로 재설정된다.  
+
+
