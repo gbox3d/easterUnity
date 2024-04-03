@@ -2,42 +2,45 @@
 
 ## 예제 설명
 
-유니티엔진은 씬별로 에제를 정리하였다.
+**태져이건용**   
+mp6050_tare : 기준점 재설정 예제  
+mp6050_packet_monitor : 패킷 모니터링 예제  
 
-mp6050_packet_monitor 패킷을 읽어서 출력해주는 기본적인 예제이다.  
-mp6050_correct 예제는 논리적 오차 보정을 위한 예제이다.  
 
-### Tare (보정) 
+### Tare (기준점 재설정) 
 
-보정에는 2가지가 있다.  
-1. imu 자체에서 직접 보벚하는 방법.  
-2. 게임엔진 등에서 보정하는 방법.  
+**종류**  
+1. imu 자체에서 직접 재설정.  
+2. 게임엔진 등에서 재설정.  
 
+
+**필요성**  
 하드웨어 설계상 센서의 위치가 항상 바뀌기 때문에 센서의 원점을 지정해야하는 필요성이 있다.
 
-**오차 보정의 필요성**
-IMU(Inertial Measurement Unit) 센서는 회전 및 가속도 데이터를 제공하지만, 센서의 정밀도, 환경적 요인, 센서의 물리적 위치 등으로 인해 오차가 발생할 수 있습니다. 이 오차는 가상 환경 내에서의 객체 회전과 실제 센서의 물리적 회전 사이에 불일치를 야기합니다. 따라서, 이 오차를 보정하는 것이 중요합니다.
+**unity 에제**  
+```c#
+// y,z 축이 서로 바뀌어 있고 x,y축의 방향이 역으로 되어있다.
+float qW = packet.qW;
+float qX = -packet.qX;
+float qY = -packet.qZ; // imu qY = unity qZ
+float qZ = packet.qY; // imu qZ = unity qY
 
-**오차 보정 방법**
+//쿼터니온을 만든다.
+mImuRotation = new Quaternion(qW, qX, qY, qZ); //imu sensor rotation
+imuObject_Ypr.transform.rotation = mDeltaRotation * mImuRotation; //Tare rotation
+```
+textFireCount.text = packet.fire_count.ToString();
 
-IMU 데이터 수신 및 초기 회전 값 설정:
+//탄수가 변하면 발사로 간주한다.
+if (mPrevFireCount != packet.fire_count)
+{
+    mPrevFireCount = packet.fire_count;
+    Debug.Log("fire count : " + packet.fire_count);
+}
 
-IMU 센서에서 회전 데이터(쿼터니온)를 UDP 통신을 통해 수신합니다.
-수신된 쿼터니온 데이터는 mImuRotation 변수에 저장되어, IMU 센서의 현재 회전 상태를 나타냅니다.
+textNetWorkFps.text = (1.0f / deltaTime).ToString("F2"); //네트워크 fps
+```
 
-보정 대상 오브잭트 :
-
-보정대상 오브잭트를 이용하여 보정을 위한 기준을 잡습니다.  
-imuObject_Corrected 오브젝트는 현재 센서값이 오차에의해 틀어져 있을경우 정확한 회전을 보정하기 위한 목표 회전 값을 나타냅니다. 이 오브잭트는 실재 물리적인 정확한 회전 값이라고 가정하고, 이를 기준으로 IMU 센서의 오차를 보정합니다.  
-
-델타 회전(보정 값) 계산:
-
-사용자가 리셋 버튼을 누르면, imuObject_Corrected의 회전(target)과 현재 IMU 센서의 회전(mImuRotation) 사이의 차이를 계산합니다.
-이 차이(mDeltaRotation)는 target 회전에서 mImuRotation을 빼서 얻습니다: mDeltaRotation = target * Quaternion.Inverse(mImuRotation).
-계산된 mDeltaRotation은 IMU 데이터의 오차를 보정하는 데 사용됩니다.
-
-보정된 회전 적용:
-
-IMU 데이터를 수신할 때마다, mImuRotation에 mDeltaRotation을 곱하여 최종 회전 값을 얻습니다.  
-이 최종 회전 값은 imuObject_Ypr 오브젝트에 적용되어, 보정된 회전을 반영합니다.
+위의 예제에서 처럼 tare를 위해서 mDeltaRotation 을 사용한다. 
+즉 mDeltaRotation은 센서의 원점을 지정하는데 사용된다.   
 
