@@ -28,10 +28,11 @@ float qZ = packet.qY; // imu qZ = unity qY
 //쿼터니온을 만든다.
 mImuRotation = new Quaternion(qW, qX, qY, qZ); //imu sensor rotation
 imuObject_Ypr.transform.rotation = mDeltaRotation * mImuRotation; //Tare rotation
-```
+
+//발사 카운트
 textFireCount.text = packet.fire_count.ToString();
 
-//탄수가 변하면 발사로 간주한다.
+//탄수가 변하면 발사로 간주한다.(발사 시점 잡기 위함)
 if (mPrevFireCount != packet.fire_count)
 {
     mPrevFireCount = packet.fire_count;
