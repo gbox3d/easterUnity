@@ -15,6 +15,8 @@ public class configUI_main : MonoBehaviour
     [SerializeField] Button btn_Connect;
     [SerializeField] Button btn_Read;
     [SerializeField] Button btn_Write;
+
+    [SerializeField] Button btn_ChckVersion;
     [SerializeField] TMP_Dropdown dropdown_PortList;
     [SerializeField] TMP_Text txt_Status;
 
@@ -280,14 +282,47 @@ OK
         {
             Debug.Log("Write Button Clicked");
 
-            // "write" 전송
-            SendCommandToSerialPort("wifi connect " + input_ssid.text + " " + input_password.text);
-            SendCommandToSerialPort("config target " + input_targetIp.text + " " + input_targetPort.text);
-            SendCommandToSerialPort("config devid " + input_deviceNumber.text);
+            try {
 
-            SendCommandToSerialPort("save");
+                // "write" 전송
+                SendCommandToSerialPort("wifi connect " + input_ssid.text + " " + input_password.text);
+                SendCommandToSerialPort("config target " + input_targetIp.text + " " + input_targetPort.text);
+                SendCommandToSerialPort("config devid " + input_deviceNumber.text);
+
+                SendCommandToSerialPort("save");
+
+            }
+            catch (Exception e)
+            {
+                Debug.LogError(e.Message);
+
+            }
+
+            
         });
 
+        btn_ChckVersion.onClick.AddListener(() =>
+        {
+            Debug.Log("Check Version Button Clicked");
+
+            // "version" 전송
+            SendCommandToSerialPort("help");
+
+            OnReceivedOk = (receivedData) =>
+            {
+                Debug.Log("Received 'OK'. Data until now: " + receivedData);
+                // 여기에 'OK'를 받았을 때의 추가 처리 작업을 구현합니다.
+                //receivedData 의 맨 처음 라인을 버전 정보로 출력
+                // string[] lines = receivedData.Split('\n'); // 데이터를 줄 단위로 나눕니다.
+
+                txt_Status.text = receivedData;
+                
+                // StartCoroutine(ReadSerialUntilIdle());
+            };
+
+            // 수신해서 출력
+            StartCoroutine(ReadSerialUntilOk());
+        });
         
     }
 

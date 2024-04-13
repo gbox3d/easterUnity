@@ -6,6 +6,18 @@ EditorBuildSettings:
   serializedVersion: 2
   m_Scenes:
   - enabled: 1
+    path: Assets/home.unity
+    guid: b7ffd0bdfb1e04500ab7d58e9cbced77
+  - enabled: 1
+    path: Assets/configUI/configUI.unity
+    guid: ec1fc4a2281884959bc660012dfb773e
+  - enabled: 1
+    path: Assets/Scenes/mp6050_tare.unity
+    guid: d361d3ade4e164c7890990c83b41c749
+  - enabled: 1
+    path: Assets/Scenes/bno08x_tare.unity
+    guid: a6f578a2c19174c46a0495e3229c6089
+  - enabled: 1
     path: Assets/Scenes/mp6050_packet_monitor.unity
     guid: 0fcc28db878c043f69e0111089a4e9ab
   m_configObjects: {}

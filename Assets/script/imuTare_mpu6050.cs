@@ -30,6 +30,7 @@ public class imuTare_mpu6050 : MonoBehaviour
 
     [SerializeField] int SensorDataPort = 9250;
     [SerializeField] int targetDevice = 0;
+    [SerializeField] TMP_InputField inputTargetDevice;
 
     [SerializeField] private Button btnReset;
 
@@ -56,6 +57,15 @@ public class imuTare_mpu6050 : MonoBehaviour
             mDeltaRotation = target * Quaternion.Inverse(mImuRotation); //target - mImuRotation
             mDeltaRotation.Normalize();
         });
+
+        inputTargetDevice.text = targetDevice.ToString();
+
+        inputTargetDevice.onEndEdit.AddListener((string text) =>
+        {
+            targetDevice = int.Parse(text);
+        });
+
+
 
     }
 
