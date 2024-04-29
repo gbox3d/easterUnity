@@ -805,6 +805,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: 
   btnGotoTare6050: {fileID: 1887986517}
+  btnGotoTareBNO8X: {fileID: 2016046152}
   btnGotoConfig: {fileID: 1719937906}
 --- !u!1 &1719937904
 GameObject:
