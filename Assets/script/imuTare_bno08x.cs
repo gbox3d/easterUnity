@@ -27,7 +27,7 @@ public class imuTare_bno08x : MonoBehaviour
     //textui textmeshpro for acc x y z
     [SerializeField] private TextMeshProUGUI textFireCount;
     [SerializeField] private TextMeshProUGUI textNetWorkFps;
-    
+
     [SerializeField] private Button btnDoTare;
 
     private Quaternion mDeltaRotation; // 회전을 보정하기 위한 값, 센서에서 들어온값에 곱해준다.
@@ -44,7 +44,8 @@ public class imuTare_bno08x : MonoBehaviour
 
         mDeltaRotation = Quaternion.identity;
 
-        btnDoTare.onClick.AddListener(()=> {
+        btnDoTare.onClick.AddListener(() =>
+        {
 
             //틀어진 값을 보정하기 위해 현재 imu의 rotation과 target rotation의 차이를 구한다.
             Quaternion target = tareTarget.transform.rotation;
@@ -68,29 +69,34 @@ public class imuTare_bno08x : MonoBehaviour
                 lastUpdateTime = Time.time;
 
                 // Receive a packet
-                S_Udp_IMU_RawData_Packet packet = await udpReceiver.ReceivePacketAsync();
-                
-                // y,z 축이 서로 바뀌어 있고 x,y축의 방향이 역으로 되어있다.
-                float qW = packet.qW;
-                float qX = packet.qZ;
-                float qY = packet.qX; 
-                float qZ = packet.qY; 
+                S_RES_Packet _res_packet = await udpReceiver.ReceivePacketAsync();
 
-                //쿼터니온을 만든다.
-                mImuRotation = new Quaternion(qW, qX, qY, qZ); //imu sensor rotation
-                
-                imuObject.transform.rotation =  mDeltaRotation * mImuRotation; //값을 보정한다.
-
-                textFireCount.text = packet.fire_count.ToString();
-
-                //탄수가 변하면 발사로 간주한다.
-                if (mPrevFireCount != packet.fire_count)
+                if (_res_packet.nResType == 0) // imu packet
                 {
-                    mPrevFireCount = packet.fire_count;
-                    Debug.Log("fire count : " + packet.fire_count);
-                }
+                    S_Udp_IMU_RawData_Packet packet = _res_packet.imu_packet;
 
-                textNetWorkFps.text = (1.0f / deltaTime).ToString("F2");
+                    // y,z 축이 서로 바뀌어 있고 x,y축의 방향이 역으로 되어있다.
+                    float qW = packet.qW;
+                    float qX = packet.qZ;
+                    float qY = packet.qX;
+                    float qZ = packet.qY;
+
+                    //쿼터니온을 만든다.
+                    mImuRotation = new Quaternion(qW, qX, qY, qZ); //imu sensor rotation
+
+                    imuObject.transform.rotation = mDeltaRotation * mImuRotation; //값을 보정한다.
+
+                    textFireCount.text = packet.fire_count.ToString();
+
+                    //탄수가 변하면 발사로 간주한다.
+                    if (mPrevFireCount != packet.fire_count)
+                    {
+                        mPrevFireCount = packet.fire_count;
+                        Debug.Log("fire count : " + packet.fire_count);
+                    }
+
+                    textNetWorkFps.text = (1.0f / deltaTime).ToString("F2");
+                }
 
                 // Debug.Log("deltaTime : " + deltaTime + " fire count : " + packet.fire_count + " qW : " + qW + " qX : " + qX + " qY : " + qY + " qZ : " + qZ);
             }

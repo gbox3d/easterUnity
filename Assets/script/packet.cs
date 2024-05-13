@@ -58,6 +58,14 @@ public struct S_Udp_IMU_RawData_Packet
     public float qZ;
 }
 
+public struct S_RES_Packet
+{
+    public int nResType;
+    public S_Udp_IMU_RawData_Packet imu_packet;
+    public string strSimpleString_packet;
+}
+
+
 public static class TaskExtensions
 {
     public static async Task<T> WithCancellation<T>(this Task<T> task, CancellationToken cancellationToken)
@@ -81,28 +89,54 @@ public class UDPReceiver : IDisposable
 {
     private UdpClient udpClient;
     private IPEndPoint endPoint;
+    private IPEndPoint lastSenderEndPoint;
     private bool isReceiving = false;
-    private CancellationTokenSource cancellationTokenSource;
+    private CancellationTokenSource cancellationTokenSource; // Used to cancel the receiving operation
+
+    // 멤버 변수로 패킷을 저장
+    private S_Udp_IMU_RawData_Packet reusablePacket = default(S_Udp_IMU_RawData_Packet);
+    private S_RES_Packet resPacket = default(S_RES_Packet);
+
 
     public UDPReceiver(int port)
     {
-        udpClient = new UdpClient(port);
-        endPoint = new IPEndPoint(IPAddress.Any, port);
+        udpClient = new UdpClient(port); // Use the same port as in your Arduino code
+        endPoint = new IPEndPoint(IPAddress.Any, port); // Listen on any IP address available
         cancellationTokenSource = new CancellationTokenSource();
     }
 
-    public async Task<S_Udp_IMU_RawData_Packet> ReceivePacketAsync()
+    public async Task<S_RES_Packet> ReceivePacketAsync()
     {
-        S_Udp_IMU_RawData_Packet packet = default;
+        // S_Udp_IMU_RawData_Packet packet = default;
 
         try
         {
             isReceiving = true;
             var result = await udpClient.ReceiveAsync().WithCancellation(cancellationTokenSource.Token);
             byte[] receivedBytes = result.Buffer;
+            lastSenderEndPoint = result.RemoteEndPoint;  // Save the sender's endpoint for sending back
 
-            // Assuming S_Udp_IMU_RawData_Packet is defined and has the same layout as in your Arduino code
-            packet = PacketUtilityClass.FromByteArray<S_Udp_IMU_RawData_Packet>(receivedBytes);
+            // check start with RES_
+            // arduino code  _packet.printf("#RES_%s",_strRes.c_str()); });
+
+            if (receivedBytes.Length >= 4 && receivedBytes[0] == '#' && receivedBytes[1] == 'R' && receivedBytes[2] == 'E' && receivedBytes[3] == 'S')
+            {
+                //to string and cut #RES_
+                int nSkip = 5;
+                string strRes = Encoding.ASCII.GetString(receivedBytes, nSkip, receivedBytes.Length - nSkip);
+                
+                resPacket.nResType = 1;
+                resPacket.strSimpleString_packet = strRes;
+
+            }
+            else {
+                // Assuming S_Udp_IMU_RawData_Packet is defined and has the same layout as in your Arduino code
+                reusablePacket = PacketUtilityClass.FromByteArray<S_Udp_IMU_RawData_Packet>(receivedBytes);
+                resPacket.nResType = 0;
+                resPacket.imu_packet = reusablePacket;
+
+            }
+            
         }
         catch (OperationCanceledException)
         {
@@ -129,7 +163,9 @@ public class UDPReceiver : IDisposable
             isReceiving = false;
         }
 
-        return packet;
+        return resPacket;
+
+        // return packet;
     }
 
     public void CancelReceiving()
@@ -145,6 +181,13 @@ public class UDPReceiver : IDisposable
         }
         cancellationTokenSource.Dispose();
     }
+
+    public void sendCmdPAcket(string cmd)
+    {
+        byte[] sendBytes = Encoding.ASCII.GetBytes(cmd);
+        udpClient.Send(sendBytes, sendBytes.Length, lastSenderEndPoint);
+    }
+
 }
 
 public static class PacketUtilityClass
@@ -186,6 +229,12 @@ public static class PacketUtilityClass
             byte[] decompressedBytes = decompressedStream.ToArray();
             return decompressedBytes;
         }
+    }
+
+    public static void sendCmdPAcket(UdpClient udpClient, string ip, int port,string cmd)
+    {
+        byte[] sendBytes = Encoding.ASCII.GetBytes(cmd);
+        udpClient.Send(sendBytes, sendBytes.Length, ip, port);
     }
 }
 

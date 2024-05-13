@@ -11,12 +11,15 @@ using System.IO;
 
 public class configUI_main : MonoBehaviour
 {
+    //button 
     [SerializeField] Button btn_Scan;
     [SerializeField] Button btn_Connect;
     [SerializeField] Button btn_Read;
     [SerializeField] Button btn_Write;
-
+    [SerializeField] Button btn_Reboot;
     [SerializeField] Button btn_ChckVersion;
+
+
     [SerializeField] TMP_Dropdown dropdown_PortList;
     [SerializeField] TMP_Text txt_Status;
 
@@ -100,22 +103,32 @@ public class configUI_main : MonoBehaviour
 
     void ConnectToSerialPort(string portName)
     {
-        serialPort = new SerialPort(portName, 115200); // 시리얼 포트 객체 생성
-        serialPort.Open(); // 포트 열기
-        serialPort.ReadTimeout = 500; // 1초 동안 데이터를 읽지 못하면 타임아웃
-        // 성공여부 판단
-        if (serialPort.IsOpen)
+        if (serialPort != null && serialPort.IsOpen)
         {
-            txt_Status.text = "Connected to " + portName;
-
-            btn_Connect.GetComponentInChildren<TMP_Text>().text = "Disconnect";
-
-
-
-            StartCoroutine(ReadSerialUntilIdle());
+            serialPort.Close(); // 포트를 닫아줍니다.
         }
-        else
+
+        try {
+
+            serialPort = new SerialPort(portName, 115200); // 시리얼 포트 객체 생성
+            serialPort.Open(); // 포트 열기
+            serialPort.ReadTimeout = 500; // 1초 동안 데이터를 읽지 못하면 타임아웃
+            // 성공여부 판단
+            if (serialPort.IsOpen)
+            {
+                txt_Status.text = "Connected to " + portName;
+
+                btn_Connect.GetComponentInChildren<TMP_Text>().text = "Disconnect";
+                StartCoroutine(ReadSerialUntilIdle());
+            }
+            else
+            {
+                txt_Status.text = "Failed to connect to " + portName;
+            }
+        }
+        catch (Exception e)
         {
+            Debug.LogError(e.Message);
             txt_Status.text = "Failed to connect to " + portName;
         }
     }
@@ -323,7 +336,22 @@ OK
             // 수신해서 출력
             StartCoroutine(ReadSerialUntilOk());
         });
-        
+
+        btn_Reboot.onClick.AddListener(() =>
+        {
+            Debug.Log("Reboot Button Clicked");
+            // "reboot" 전송
+            SendCommandToSerialPort("reboot");
+
+            OnReceivedOk = (receivedData) =>
+            {
+                Debug.Log("Received 'OK'. Data until now: " + receivedData);
+                txt_Status.text = receivedData;
+            };
+
+            // 수신해서 출력
+            StartCoroutine(ReadSerialUntilOk());
+        });        
     }
 
     // Update is called once per frame
