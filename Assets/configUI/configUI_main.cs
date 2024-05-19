@@ -213,6 +213,14 @@ public class configUI_main : MonoBehaviour
                     // "tty."를 포함하는 포트만 Dropdown 옵션으로 추가
                     filteredPorts.Add(new TMP_Dropdown.OptionData(port));
                 }
+                else if (port.Contains("COM")) {
+                    filteredPorts.Add(new TMP_Dropdown.OptionData(port));
+
+                }
+                else {
+                    Debug.Log("Filtered Port: " + port);
+                
+                }
             }
             dropdown_PortList.AddOptions(filteredPorts); // 필터링된 포트 리스트를 Dropdown에 추가
 
