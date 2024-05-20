@@ -7,13 +7,14 @@ using System.IO.Ports;
 using TMPro;
 using System;
 using System.IO;
+using System.Threading.Tasks;
 
 
 public class configUI_main : MonoBehaviour
 {
     //button 
     [SerializeField] Button btn_Scan;
-    [SerializeField] Button btn_Connect;
+    [SerializeField] Button btnConnect;
     [SerializeField] Button btn_Read;
     [SerializeField] Button btn_Write;
     [SerializeField] Button btn_Reboot;
@@ -22,6 +23,7 @@ public class configUI_main : MonoBehaviour
 
     [SerializeField] TMP_Dropdown dropdown_PortList;
     [SerializeField] TMP_Text txt_Status;
+    [SerializeField] TMP_Text txt_firmwareVersion;
 
     [SerializeField] TMP_InputField input_ssid;
     [SerializeField] TMP_InputField input_password;
@@ -30,6 +32,8 @@ public class configUI_main : MonoBehaviour
     [SerializeField] TMP_InputField input_deviceNumber;
 
     SerialPort serialPort;
+
+    SerialPortManager serialPortManager = new();
 
     public Action<string> OnReceivedOk; // "OK" 수신 시 호출될 콜백
     public Action<string> OnTimeout; // 타임아웃 시 호출될 콜백
@@ -69,6 +73,22 @@ public class configUI_main : MonoBehaviour
                         
                         break;
                 }
+            }
+            else if(data.Contains("revision") ) {
+
+                //revision 문자열 부터 끝까지 자르기
+                int startIndex = data.IndexOf("revision");
+                string revision = data.Substring(startIndex);
+
+                // revision 11  revisio 다음 공백후 숫자 얻기
+                string[] parts = revision.Split(' ');
+                int revisionNumber = int.Parse(parts[1]);
+
+                txt_firmwareVersion.text = "Firmware Version: " + revisionNumber.ToString();
+
+                // txt_Status.text += parts[1] + "\n";
+
+                // txt_Status.text += line + "\n";
             }
         }
     }
@@ -118,7 +138,7 @@ public class configUI_main : MonoBehaviour
             {
                 txt_Status.text = "Connected to " + portName;
 
-                btn_Connect.GetComponentInChildren<TMP_Text>().text = "Disconnect";
+                btnConnect.GetComponentInChildren<TMP_Text>().text = "Disconnect";
                 StartCoroutine(ReadSerialUntilIdle());
             }
             else
@@ -192,125 +212,235 @@ public class configUI_main : MonoBehaviour
     }
 
 
+    void clearInputFields()
+    {
+        input_ssid.text = "";
+        input_password.text = "";
+        input_targetIp.text = "";
+        input_targetPort.text = "";
+        input_deviceNumber.text = "";
+    }
 
     // Start is called before the first frame update
     void Start()
     {
-        btn_Scan.onClick.AddListener(() =>
+        btn_Scan.onClick.AddListener(async () =>
         {
             Debug.Log("Scan Button Clicked");
+
+            btn_Scan.interactable = false;
+
+            string[] ports = SerialPort.GetPortNames();
+
+            List<string> portList = new List<string>();
+
+            foreach (string port in ports)
+            {
+                if (port.Contains("tty."))
+                {
+                    //Bluetooth 포트만 필터링
+                    if (port.Contains("Bluetooth"))
+                    {
+                        continue;
+                    }
+                    // "tty."를 포함하는 포트만 Dropdown 옵션으로 추가
+                    portList.Add(port);
+                }
+                else if (port.Contains("COM"))
+                {
+                    portList.Add(port);
+                }
+            }
 
             List<TMP_Dropdown.OptionData> filteredPorts = new List<TMP_Dropdown.OptionData>(); // OptionData 리스트 생성
 
             //기존 내용 지우기
             dropdown_PortList.ClearOptions();
 
-            string[] ports = SerialPort.GetPortNames();
+            
             foreach (string port in ports)
             {
-                if (port.Contains("tty."))
-                {
-                    // "tty."를 포함하는 포트만 Dropdown 옵션으로 추가
-                    filteredPorts.Add(new TMP_Dropdown.OptionData(port));
-                }
-                else if (port.Contains("COM")) {
-                    filteredPorts.Add(new TMP_Dropdown.OptionData(port));
 
-                }
-                else {
-                    Debug.Log("Filtered Port: " + port);
-                
-                }
+                await Task.Run( () =>
+                {
+                    if(serialPortManager.checkPort_moai_DMP(port,115200))
+                    {
+                        filteredPorts.Add(new TMP_Dropdown.OptionData(port));
+                        
+                        // await Task.Delay(1000);
+                    }
+                });
             }
             dropdown_PortList.AddOptions(filteredPorts); // 필터링된 포트 리스트를 Dropdown에 추가
 
+            btn_Scan.interactable = true;
+
+            Debug.Log("Scan Button Finished");
+
         });
 
-        btn_Connect.onClick.AddListener(() =>
+        btnConnect.onClick.AddListener(() =>
         {
-            Debug.Log("Connect Button Clicked");
-            Debug.Log(dropdown_PortList.options[dropdown_PortList.value].text);
 
-            if (serialPort != null && serialPort.IsOpen)
+            clearInputFields();
+            
+
+            if (serialPortManager.IsOpen())
             {
-                serialPort.Close();
-                txt_Status.text = "Disconnected";
-                btn_Connect.GetComponentInChildren<TMP_Text>().text = "Connect";
+                serialPortManager.CloseSerialPort();
+                btnConnect.GetComponentInChildren<TMP_Text>().text = "Connect";
+
                 return;
             }
-            else
+
+            if (dropdown_PortList.options.Count == 0)
             {
-                ConnectToSerialPort(dropdown_PortList.options[dropdown_PortList.value].text);
+                // txt_Log.text += "No port selected.\n";
+                return;
             }
+
+            string portName = dropdown_PortList.options[dropdown_PortList.value].text;
+
+            txt_Status.text += "Connecting to " + portName + "\n";
+
+            serialPortManager.OpenSerialPort(portName, 115200);
+
+            if (!serialPortManager.IsOpen())
+            {
+                txt_Status.text += "Failed to connect to " + portName + "\n";
+                return;
+            }
+
+            txt_Status.text += "Connected to " + portName + "\n";
+
+            serialPortManager.OnReceivedData = (string data) =>
+            {
+                // \r 을 제거하고 출력
+                data = data.Replace("\r", "");
+
+                txt_Status.text += data + "\n";
+            };
+
+            serialPortManager.OnError = (string error) =>
+            {
+                txt_Status.text += "Error: " + error + "\n";
+                
+            };
+
+            serialPortManager.OnTimeout = (string timeout) =>
+            {
+                txt_Status.text += "Timeout: " + timeout + "\n";
+                
+            };
+
+            //'disconnect text' button
+            btnConnect.GetComponentInChildren<TMP_Text>().text = "Disconnect";
+
+
+            // Debug.Log("Connect Button Clicked");
+            // Debug.Log(dropdown_PortList.options[dropdown_PortList.value].text);
+
+            // if (serialPort != null && serialPort.IsOpen)
+            // {
+            //     serialPort.Close();
+            //     txt_Status.text = "Disconnected";
+            //     btn_Connect.GetComponentInChildren<TMP_Text>().text = "Connect";
+            //     return;
+            // }
+            // else
+            // {
+            //     ConnectToSerialPort(dropdown_PortList.options[dropdown_PortList.value].text);
+            // }
         });
 
-        btn_Read.onClick.AddListener(() =>
+        btn_Read.onClick.AddListener( () =>
         {
             Debug.Log("Read Button Clicked");
 
-            serialPort.DiscardInBuffer(); // 버퍼를 비웁니다.
+// mStrAp: 
+// mStrPassword: 
+// mTargetIp: 
+// mTargetPort: 0
+// mDeviceNumber: 0
+// mTriggerDelay: 150
+// mOffsets: 
+// offset0: 0
+// offset1: 0
+// offset2: 0
+// offset3: 0
+// offset4: 0
+// offset5: 0
+// OK
 
-            // 콜백 함수 예시
-            OnReceivedOk = (receivedData) =>
+            txt_Status.text = "";
+
+            serialPortManager.OnReceivedData = (string data) =>
             {
-                Debug.Log("Received 'OK'. Data until now: " + receivedData);
-                // 여기에 'OK'를 받았을 때의 추가 처리 작업을 구현합니다.
+                ParseData(data);
 
-                /*
-mStrAp: 
-mStrPassword: 
-mTargetIp: 
-mTargetPort: 0
-mDeviceNumber: 0
-mTriggerDelay: 150
-mOffsets: 
-offset0: 0
-offset1: 0
-offset2: 0
-offset3: 0
-offset4: 0
-offset5: 0
-OK
-                */
-
-                ParseData(receivedData);
+                if(data.Contains("OK"))
+                {
+                    txt_Status.text = "read done\n";
+                    serialPortManager.OnReceivedData = null; // 콜백 해제
+                }
             };
 
-            OnTimeout = (receivedData) =>
-            {
-                Debug.Log("Timeout. Data until now: " + receivedData);
-                // 여기에 타임아웃 시의 추가 처리 작업을 구현합니다.
+            serialPortManager.WriteSerialPort("print\r\n");
 
-            };
-
-            OnError = (receivedData) =>
-            {
-                Debug.Log("Error. Data until now: " + receivedData);
-                // 여기에 에러 발생 시의 추가 처리 작업을 구현합니다.
-            };
-
-
-            // "print"  전송
-            SendCommandToSerialPort("print");
-            // ReadFromSerialPort();
-
-            // 수신해서 출력
-            StartCoroutine(ReadSerialUntilOk());
 
         });
 
-        btn_Write.onClick.AddListener(() =>
+        btn_Write.onClick.AddListener(async () =>
         {
             Debug.Log("Write Button Clicked");
 
             try {
 
+                txt_Status.text = "";
+                serialPortManager.OnReceivedData = (string data) =>
+                {
+                    txt_Status.text += data + "\n";
+                };
+                
                 // "write" 전송
-                SendCommandToSerialPort("wifi connect " + input_ssid.text + " " + input_password.text);
-                SendCommandToSerialPort("config target " + input_targetIp.text + " " + input_targetPort.text);
-                SendCommandToSerialPort("config devid " + input_deviceNumber.text);
+                await Task.Delay(100);
+                serialPortManager.WriteSerialPort("wifi connect " + input_ssid.text + " " + input_password.text);
 
-                SendCommandToSerialPort("save");
+                await Task.Delay(100);
+                serialPortManager.WriteSerialPort("config target " + input_targetIp.text + " " + input_targetPort.text);
+
+                await Task.Delay(100);
+                serialPortManager.WriteSerialPort("config devid " + input_deviceNumber.text);
+
+                serialPortManager.OnReceivedData = (string data) =>
+                {
+                    if(data.Contains("OK"))
+                    {
+                        txt_Status.text = "write done\n";
+                        serialPortManager.OnReceivedData = null; // 콜백 해제
+                    }
+                };
+                serialPortManager.OnTimeout = (string timeout) =>
+                {
+                    txt_Status.text = "write timeout\n";
+                    serialPortManager.OnTimeout = null; // 콜백 해제
+                };
+                serialPortManager.OnError = (string error) =>
+                {
+                    txt_Status.text = "write error\n";
+                    serialPortManager.OnError = null; // 콜백 해제
+                };
+
+                await Task.Delay(100);
+                serialPortManager.WriteSerialPort("save");
+
+
+
+                // SendCommandToSerialPort("wifi connect " + input_ssid.text + " " + input_password.text);
+                // SendCommandToSerialPort("config target " + input_targetIp.text + " " + input_targetPort.text);
+                // SendCommandToSerialPort("config devid " + input_deviceNumber.text);
+
+                // SendCommandToSerialPort("save");
 
             }
             catch (Exception e)
@@ -326,39 +456,31 @@ OK
         {
             Debug.Log("Check Version Button Clicked");
 
-            // "version" 전송
-            SendCommandToSerialPort("help");
+            // txt_Status.text = "";
 
-            OnReceivedOk = (receivedData) =>
+            serialPortManager.OnReceivedData = (string data) =>
             {
-                Debug.Log("Received 'OK'. Data until now: " + receivedData);
-                // 여기에 'OK'를 받았을 때의 추가 처리 작업을 구현합니다.
-                //receivedData 의 맨 처음 라인을 버전 정보로 출력
-                // string[] lines = receivedData.Split('\n'); // 데이터를 줄 단위로 나눕니다.
+                Debug.Log(data);
+                ParseData(data);
 
-                txt_Status.text = receivedData;
-                
-                // StartCoroutine(ReadSerialUntilIdle());
+                if(data.Contains("OK"))
+                {
+                    txt_Status.text = "version check done\n";
+                    serialPortManager.OnReceivedData = null; // 콜백 해제
+                }
             };
 
-            // 수신해서 출력
-            StartCoroutine(ReadSerialUntilOk());
+            serialPortManager.DiscardInBuffer(); // 버퍼를 비웁니다.
+
+            serialPortManager.WriteSerialPort("help\r\n");
         });
 
         btn_Reboot.onClick.AddListener(() =>
         {
             Debug.Log("Reboot Button Clicked");
-            // "reboot" 전송
-            SendCommandToSerialPort("reboot");
 
-            OnReceivedOk = (receivedData) =>
-            {
-                Debug.Log("Received 'OK'. Data until now: " + receivedData);
-                txt_Status.text = receivedData;
-            };
+            serialPortManager.WriteSerialPort("reboot\r\n");
 
-            // 수신해서 출력
-            StartCoroutine(ReadSerialUntilOk());
         });        
     }
 

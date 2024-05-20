@@ -160,6 +160,68 @@ public class SerialPortManager : IDisposable
         return false;
     }
 
+    public bool checkPort_moai_DMP(string portName, int baudRate)
+    {
+        if (serialPort != null)
+        {
+            if (serialPort.IsOpen)
+            {
+                serialPort.Close();
+            }
+        }
+
+        try
+        {
+            serialPort = new SerialPort(portName, baudRate)
+            {
+                ReadTimeout = 1000
+            };
+
+            serialPort.Open();
+
+            Debug.Log("시리얼 포트가 연결되었습니다. : " + portName);
+
+            //delay
+            Thread.Sleep(3000);
+
+            serialPort.WriteLine("help");
+
+
+            while (true)
+            {
+                string data = serialPort.ReadLine();
+
+                Debug.Log("data: " + data);
+
+                if(data.Contains(" MOAI-C3 (DMP)"))
+                {
+                    Debug.Log("DMP found.");
+                    return true;
+                }
+            }
+        }
+        catch (TimeoutException)
+        {
+            Debug.Log("timeout exception occured. ");
+            // return false;
+        }
+        catch (Exception ex)
+        {
+            Debug.LogError(ex.Message);
+            // return false;
+        }
+        finally
+        {
+            if (serialPort.IsOpen)
+            {
+                serialPort.Close();
+            }
+        }
+
+
+        return false;
+    }
+
     public void ParseAndMoaiReceiverFormat(string data)
     {
 
@@ -194,6 +256,12 @@ public class SerialPortManager : IDisposable
             // Console.WriteLine("데이터 파싱 중 오류가 발생했습니다. 데이터 형식을 확인해주세요.");
         }
     }
+
+    public void DiscardInBuffer()
+    {
+        serialPort.DiscardInBuffer();
+    }
+
     public void WriteSerialPort(string data)
     {
         if (serialPort.IsOpen)

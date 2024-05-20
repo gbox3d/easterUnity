@@ -20,5 +20,8 @@ EditorBuildSettings:
   - enabled: 1
     path: Assets/Scenes/mp6050_packet_monitor.unity
     guid: 0fcc28db878c043f69e0111089a4e9ab
+  - enabled: 1
+    path: Assets/configUIRecv/configUIRecv.unity
+    guid: 7c00c770532944fc298feb74defc6bd0
   m_configObjects: {}
   m_UseUCBPForAssetBundles: 0

@@ -9,6 +9,8 @@ public class home : MonoBehaviour
     [SerializeField] Button btnGotoTareBNO8X;
     [SerializeField] Button btnGotoConfig;
     [SerializeField] Button btnGotoPacketMonitor;
+    [SerializeField] Button btnGotoConfigReceiver;
+
     // Start is called before the first frame update
     void Start()
     {
@@ -27,6 +29,12 @@ public class home : MonoBehaviour
         btnGotoPacketMonitor.onClick.AddListener(() => {
             UnityEngine.SceneManagement.SceneManager.LoadScene("mp6050_packet_monitor");
         });
+
+        btnGotoConfigReceiver.onClick.AddListener(() => {
+            UnityEngine.SceneManagement.SceneManager.LoadScene("configUIRecv");
+        });
+
+
 
         
     }
