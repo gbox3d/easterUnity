@@ -30,6 +30,8 @@ public class configUI_main : MonoBehaviour
     [SerializeField] TMP_InputField input_targetIp;
     [SerializeField] TMP_InputField input_targetPort;
     [SerializeField] TMP_InputField input_deviceNumber;
+    [SerializeField] TMP_InputField input_triggerDelay;
+    [SerializeField] Toggle toggle_IsUseImu;
 
     SerialPort serialPort;
 
@@ -68,6 +70,12 @@ public class configUI_main : MonoBehaviour
                         break;
                     case "mDeviceNumber":
                         input_deviceNumber.text = value;
+                        break;
+                    case "mTriggerDelay":
+                        input_triggerDelay.text = value;
+                        break;
+                    case "mIsUseImu" :
+                        toggle_IsUseImu.isOn = value == "1" ? true : false;
                         break;
                     default:
                         
@@ -219,11 +227,15 @@ public class configUI_main : MonoBehaviour
         input_targetIp.text = "";
         input_targetPort.text = "";
         input_deviceNumber.text = "";
+        input_triggerDelay.text = "";
+        toggle_IsUseImu.isOn = false;
     }
 
     // Start is called before the first frame update
     void Start()
     {
+        clearInputFields();
+        
         btn_Scan.onClick.AddListener(async () =>
         {
             Debug.Log("Scan Button Clicked");
@@ -260,6 +272,7 @@ public class configUI_main : MonoBehaviour
             
             foreach (string port in ports)
             {
+                txt_Status.text = "Scanning... " + port + "\n";
 
                 await Task.Run( () =>
                 {
@@ -396,6 +409,8 @@ public class configUI_main : MonoBehaviour
 
             try {
 
+                btn_Write.interactable = false;
+
                 txt_Status.text = "";
                 serialPortManager.OnReceivedData = (string data) =>
                 {
@@ -411,6 +426,12 @@ public class configUI_main : MonoBehaviour
 
                 await Task.Delay(100);
                 serialPortManager.WriteSerialPort("config devid " + input_deviceNumber.text);
+
+                await Task.Delay(100);
+                serialPortManager.WriteSerialPort("config triggerdelay " + input_triggerDelay.text);
+
+                await Task.Delay(100);
+                serialPortManager.WriteSerialPort("imu " + (toggle_IsUseImu.isOn ? "use" : "notuse"));
 
                 serialPortManager.OnReceivedData = (string data) =>
                 {
@@ -448,6 +469,8 @@ public class configUI_main : MonoBehaviour
                 Debug.LogError(e.Message);
 
             }
+
+            btn_Write.interactable = true;
 
             
         });

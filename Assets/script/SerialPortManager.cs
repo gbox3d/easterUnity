@@ -174,7 +174,7 @@ public class SerialPortManager : IDisposable
         {
             serialPort = new SerialPort(portName, baudRate)
             {
-                ReadTimeout = 1000
+                ReadTimeout = 5000
             };
 
             serialPort.Open();
